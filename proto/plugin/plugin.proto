@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package plugin;
+
+option go_package = "github.com/polyshift/microkernel/proto/plugin";
+
+service PluginService {
+    // 插件初始化
+    rpc Init(InitRequest) returns (InitResponse);
+    // 处理业务请求
+    rpc HandleRequest(RequestContext) returns (ResponseContext);
+    // 健康检查
+    rpc HealthCheck(Empty) returns (HealthStatus);
+    // 优雅停机
+    rpc Shutdown(Empty) returns (Empty);
+}
+
+message RequestContext {
+    string request_id = 1;
+    string method = 2;
+    string path = 3;
+    map<string, string> headers = 4;
+    bytes body = 5;
+    map<string, string> params = 6; // Path parameters
+    map<string, string> query = 7;  // Query parameters
+    // User info
+    string user_id = 8;
+    string tenant_id = 9;
+}
+
+message ResponseContext {
+    int32 status_code = 1;
+    map<string, string> headers = 2;
+    bytes body = 3;
+    string error_message = 4;
+}
+
+message InitRequest {
+    map<string, string> config = 1;
+}
+
+message InitResponse {
+    bool success = 1;
+    string error_message = 2;
+}
+
+message Empty {}
+
+message HealthStatus {
+    enum Status {
+        UNKNOWN = 0;
+        SERVING = 1;
+        NOT_SERVING = 2;
+    }
+    Status status = 1;
+    string message = 2;
+}

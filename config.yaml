@@ -1,0 +1,63 @@
+server:
+  port: 8080
+
+auth:
+  enabled: false
+  api_key: "secret-key-123"
+
+rate_limit:
+  enabled: false
+  qps: 100
+  burst: 200
+
+plugins:
+  - name: "go-hello"
+    version: "1.0.0"
+    runtime: "go"
+    entrypoint: "examples/go-hello/main.go"
+    params:
+      greeting: "Bonjour"
+    routes:
+      - path: "/api/hello"
+        method: "GET"
+        handler: "hello"
+  - name: "py-hello"
+    version: "1.0.0"
+    runtime: "python"
+    entrypoint: "examples/py-hello/main.py"
+    params:
+      greeting: "Hola"
+    routes:
+      - path: "/api/python"
+        method: "GET"
+        handler: "python"
+  - name: "js-hello"
+    version: "1.0.0"
+    runtime: "nodejs"
+    entrypoint: "examples/js-hello/index.js"
+    params:
+      greeting: "Hallo"
+    routes:
+      - path: "/api/node"
+        method: "GET"
+        handler: "node"
+  - name: "java-hello"
+    version: "1.0.0"
+    runtime: "java"
+    entrypoint: "examples/java-hello/target/java-hello-1.0.0.jar"
+    params:
+      greeting: "Namaste"
+    routes:
+      - path: "/api/java"
+        method: "GET"
+        handler: "java"
+  - name: "cpp-hello"
+    version: "1.0.0"
+    runtime: "cpp"
+    entrypoint: "./examples/cpp-hello/build/cpp-hello"
+    params:
+      greeting: "Konnichiwa"
+    routes:
+      - path: "/api/cpp"
+        method: "GET"
+        handler: "cpp"

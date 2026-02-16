@@ -28,5 +28,31 @@ go.work.sum
 .env
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
+.trae/
+.DS_Store
+
+# C++ build
+build/
+*.o
+*.a
+cmake-build-debug/
+
+# Java build
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Node
+node_modules/
+npm-debug.log
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+*.egg-info/
