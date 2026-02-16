@@ -1,0 +1,14 @@
+{
+  "name": "@polyshift/plugin-sdk",
+  "version": "1.0.0",
+  "description": "Polyshift Plugin SDK for Node.js",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.10.0",
+    "@grpc/proto-loader": "^0.7.10",
+    "google-protobuf": "^3.21.2"
+  }
+}
