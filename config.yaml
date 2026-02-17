@@ -10,6 +10,32 @@ rate_limit:
   qps: 100
   burst: 200
 
+resilience:
+  circuit_breaker:
+    enabled: true
+    max_requests: 3
+    interval: "10s"
+    timeout: "10s"
+    ready_to_trip_ratio: 0.5
+  watchdog:
+    enabled: true
+    interval: "5s"
+    max_retries: 3
+    base_delay: "1s"
+    max_delay: "10s"
+
+observability:
+  logging:
+    level: "info"
+    format: "json"
+  tracing:
+    enabled: true
+    sampling_rate: 1.0
+    exporter: "stdout"
+  metrics:
+    enabled: true
+    port: 9090
+
 plugins:
   - name: "go-hello"
     version: "1.0.0"

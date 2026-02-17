@@ -1,0 +1,21 @@
+server:
+  port: 8082
+
+resilience:
+  circuit_breaker:
+    enabled: true
+    max_requests: 3
+    interval: "10s"
+    timeout: "5s"
+    ready_to_trip_ratio: 0.5
+  watchdog:
+    enabled: false
+
+plugins:
+  - name: "cb-plugin"
+    version: "1.0.0"
+    runtime: "binary"
+    entrypoint: "./test/e2e/flaky_plugin/flaky_plugin"
+    routes:
+      - path: "/api/cb"
+        method: "GET"
