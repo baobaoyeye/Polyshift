@@ -8,6 +8,7 @@ import (
 	"os"
 
 	pb "github.com/polyshift/microkernel/proto/plugin"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 )
 
@@ -23,7 +24,9 @@ type Server struct {
 
 func NewServer() *Server {
 	return &Server{
-		server: grpc.NewServer(),
+		server: grpc.NewServer(
+			grpc.StatsHandler(otelgrpc.NewServerHandler()),
+		),
 		config: make(map[string]string),
 	}
 }
