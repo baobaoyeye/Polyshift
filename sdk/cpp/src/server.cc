@@ -1,53 +1,84 @@
 #include "polyshift/plugin.h"
 #include <grpcpp/grpcpp.h>
 #include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
+#include <cstdlib>
+
+// OpenTelemetry Includes
+#include "opentelemetry/exporters/otlp/otlp_grpc_exporter_factory.h"
+#include "opentelemetry/exporters/otlp/otlp_grpc_exporter_options.h"
+#include "opentelemetry/exporters/ostream/span_exporter_factory.h"
+#include "opentelemetry/sdk/trace/simple_processor_factory.h"
+#include "opentelemetry/sdk/trace/tracer_provider_factory.h"
+#include "opentelemetry/trace/provider.h"
+#include "opentelemetry/context/propagation/global_propagator.h"
+#include "opentelemetry/context/propagation/text_map_propagator.h"
+#include "opentelemetry/trace/propagation/http_trace_context.h"
+#include "opentelemetry/sdk/resource/resource.h"
+#include "plugin_service_impl.h"
 
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::Status;
+namespace trace_api = opentelemetry::trace;
+namespace trace_sdk = opentelemetry::sdk::trace;
+namespace otlp = opentelemetry::exporter::otlp;
+namespace context = opentelemetry::context;
+namespace resource = opentelemetry::sdk::resource;
 
-class PluginServiceImpl final : public ::plugin::PluginService::Service {
-public:
-    explicit PluginServiceImpl(std::shared_ptr<polyshift::Plugin> plugin) : plugin_(plugin) {}
+namespace trace_exporter = opentelemetry::exporter::trace;
 
-    Status Init(ServerContext* context, const ::plugin::InitRequest* request, ::plugin::InitResponse* response) override {
-        // Convert map to std::map
-        std::map<std::string, std::string> config;
-        for (const auto& pair : request->config()) {
-            config[pair.first] = pair.second;
-        }
-        
-        plugin_->Init(config);
-        
-        response->set_success(true);
-        return Status::OK;
+void InitTracer() {
+    std::unique_ptr<trace_sdk::SpanExporter> exporter;
+    const char* exporter_type = std::getenv("OTEL_TRACES_EXPORTER");
+    
+    if (exporter_type && std::string(exporter_type) == "console") {
+        std::cout << "Initializing Console Exporter" << std::endl;
+        exporter = trace_exporter::OStreamSpanExporterFactory::Create();
+    } else {
+        std::cout << "Initializing OTLP Exporter" << std::endl;
+        // TODO: Handle "none" exporter
+        exporter = otlp::OtlpGrpcExporterFactory::Create();
     }
-
-    Status HandleRequest(ServerContext* context, const ::plugin::RequestContext* request, ::plugin::ResponseContext* response) override {
-        plugin_->HandleRequest(*request, response);
-        return Status::OK;
+    
+    auto processor = trace_sdk::SimpleSpanProcessorFactory::Create(std::move(exporter));
+    
+    // Create Resource
+    resource::ResourceAttributes attributes = {
+        {"service.name", "unknown-plugin"}
+    };
+    const char* service_name = std::getenv("OTEL_SERVICE_NAME");
+    if (service_name) {
+        attributes["service.name"] = service_name;
     }
-
-    Status Shutdown(ServerContext* context, const ::plugin::Empty* request, ::plugin::Empty* response) override {
-        // TODO: Graceful shutdown logic if needed
-        return Status::OK;
-    }
-
-    Status HealthCheck(ServerContext* context, const ::plugin::Empty* request, ::plugin::HealthStatus* response) override {
-        response->set_status(::plugin::HealthStatus::SERVING);
-        return Status::OK;
-    }
-
-private:
-    std::shared_ptr<polyshift::Plugin> plugin_;
-};
+    auto resource = resource::Resource::Create(attributes);
+    
+    auto provider = trace_sdk::TracerProviderFactory::Create(std::move(processor), resource);
+    
+    // Set global tracer provider
+    trace_api::Provider::SetTracerProvider(
+        opentelemetry::nostd::shared_ptr<trace_api::TracerProvider>(provider.release())
+    );
+    
+    // Set global propagator
+    opentelemetry::context::propagation::GlobalTextMapPropagator::SetGlobalPropagator(
+        opentelemetry::nostd::shared_ptr<opentelemetry::context::propagation::TextMapPropagator>(
+            new opentelemetry::trace::propagation::HttpTraceContext()
+        )
+    );
+}
 
 namespace polyshift {
 
 Server::Server(std::shared_ptr<Plugin> plugin) : plugin_(plugin), selected_port_(0) {}
 
 void Server::Start() {
+    // Initialize OpenTelemetry
+    ::InitTracer();
+
     std::string server_address("0.0.0.0:0");
     PluginServiceImpl service(plugin_);
 
