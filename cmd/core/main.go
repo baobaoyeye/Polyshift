@@ -5,6 +5,9 @@ import (
 	"flag"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/polyshift/microkernel/internal/core/config"
 	"github.com/polyshift/microkernel/internal/core/gateway"
@@ -33,7 +36,9 @@ func main() {
 		os.Exit(1)
 	}
 	defer func() {
-		if err := tracerShutdown(context.Background()); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := tracerShutdown(ctx); err != nil {
 			slog.Error("Failed to shutdown tracer", "error", err)
 		}
 	}()
@@ -44,7 +49,9 @@ func main() {
 		os.Exit(1)
 	}
 	defer func() {
-		if err := meterShutdown(context.Background()); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := meterShutdown(ctx); err != nil {
 			slog.Error("Failed to shutdown meter", "error", err)
 		}
 	}()
@@ -55,6 +62,13 @@ func main() {
 		slog.Error("Failed to load plugins", "error", err)
 		os.Exit(1)
 	}
+
+	// Create a context for signal handling
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	// Start Watchdog with the context
+	pluginMgr.StartWatchdog(ctx)
 
 	// 4. Start Gateway
 	server := gateway.NewServer(cfg.Server, cfg.Auth, cfg.RateLimit, cfg.Observability, cfg.Plugins, pluginMgr)

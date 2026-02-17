@@ -184,7 +184,7 @@ func (s *Server) forwardToPlugin(w http.ResponseWriter, req *http.Request, param
 	}
 
 	// 3. 调用 gRPC
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := pInstance.HandleRequest(ctx, reqCtx)
@@ -205,9 +205,5 @@ func (s *Server) forwardToPlugin(w http.ResponseWriter, req *http.Request, param
 }
 
 func (s *Server) Start() error {
-	// Start Watchdog in background
-	ctx := context.Background()
-	s.pluginMgr.StartWatchdog(ctx)
-
 	return s.engine.Run(fmt.Sprintf(":%d", s.serverConfig.Port))
 }
