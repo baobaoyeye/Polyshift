@@ -1,0 +1,19 @@
+server:
+  port: 8081
+
+resilience:
+  watchdog:
+    enabled: true
+    interval: "2s"
+    max_retries: 5
+    base_delay: "100ms"
+    max_delay: "1s"
+
+plugins:
+  - name: "chaos-plugin"
+    version: "1.0.0"
+    runtime: "binary"
+    entrypoint: "./test/e2e/flaky_plugin/flaky_plugin"
+    routes:
+      - path: "/api/chaos"
+        method: "GET"
