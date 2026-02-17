@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -73,8 +74,24 @@ func main() {
 	// 4. Start Gateway
 	server := gateway.NewServer(cfg.Server, cfg.Auth, cfg.RateLimit, cfg.Observability, cfg.Plugins, pluginMgr)
 	slog.Info("Starting Microkernel Core", "port", cfg.Server.Port)
-	if err := server.Start(); err != nil {
-		slog.Error("Server failed", "error", err)
-		os.Exit(1)
+
+	go func() {
+		if err := server.Start(); err != nil && err != http.ErrServerClosed {
+			slog.Error("Server failed", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	// Wait for signal
+	<-ctx.Done()
+	slog.Info("Shutting down server...")
+
+	// Graceful shutdown
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		slog.Error("Server forced to shutdown", "error", err)
 	}
+
+	slog.Info("Server exiting")
 }

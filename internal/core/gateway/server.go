@@ -25,6 +25,7 @@ type Server struct {
 	obsCfg        config.ObservabilityConfig
 	pluginConfigs []config.PluginConfig
 	radixRouter   *router.Router
+	httpServer    *http.Server
 }
 
 func NewServer(serverCfg config.ServerConfig, authCfg config.AuthConfig, rateLimitCfg config.RateLimitConfig, obsCfg config.ObservabilityConfig, pluginConfigs []config.PluginConfig, mgr *plugin.Manager) *Server {
@@ -205,5 +206,16 @@ func (s *Server) forwardToPlugin(w http.ResponseWriter, req *http.Request, param
 }
 
 func (s *Server) Start() error {
-	return s.engine.Run(fmt.Sprintf(":%d", s.serverConfig.Port))
+	s.httpServer = &http.Server{
+		Addr:    fmt.Sprintf(":%d", s.serverConfig.Port),
+		Handler: s.engine,
+	}
+	return s.httpServer.ListenAndServe()
+}
+
+func (s *Server) Shutdown(ctx context.Context) error {
+	if s.httpServer != nil {
+		return s.httpServer.Shutdown(ctx)
+	}
+	return nil
 }
