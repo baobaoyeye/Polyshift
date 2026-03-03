@@ -10,8 +10,8 @@ Core 与 Plugin 之间通过 gRPC Metadata 传递 Trace Context，遵循 W3C Tra
 ```mermaid
 sequenceDiagram
     participant Client
-    participant Core (Go)
-    participant Plugin (Polyglot)
+    participant Core [Go]
+    participant Plugin [Polyglot]
     participant OTel Collector
 
     Client->>Core: HTTP Request

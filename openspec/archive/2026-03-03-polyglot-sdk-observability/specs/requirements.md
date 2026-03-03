@@ -42,9 +42,9 @@
     *   引入 OTel 后，插件处理请求的平均延迟增加不超过 2ms。
     *   在采样率 (Sampling Rate) 为 0 (关闭) 时，性能损耗应接近于零。
 *   **兼容性 (Compatibility)**:
-    *   Python: 支持 Python 3.8+。
+    *   Python: 支持 Python 3.10+。
     *   Java: 支持 Java 11+。
-    *   Node.js: 支持 Node.js 14+。
+    *   Node.js: 支持 Node.js 18+。
     *   C++: 支持 C++17 标准。
 *   **稳定性 (Stability)**:
     *   OTel SDK 初始化失败 (如 Exporter 连接超时) 不应导致插件进程崩溃，应降级为无追踪模式。
