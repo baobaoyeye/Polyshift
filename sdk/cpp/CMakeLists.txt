@@ -6,12 +6,12 @@ set(CMAKE_CXX_STANDARD 17)
 find_package(Protobuf CONFIG REQUIRED)
 find_package(OpenSSL REQUIRED)
 if(NOT TARGET OpenSSL::SSL)
-    add_library(OpenSSL::SSL UNKNOWN IMPORTED)
+    add_library(OpenSSL::SSL UNKNOWN IMPORTED GLOBAL)
     set_target_properties(OpenSSL::SSL PROPERTIES
         IMPORTED_LOCATION "${OPENSSL_SSL_LIBRARY}"
         INTERFACE_INCLUDE_DIRECTORIES "${OPENSSL_INCLUDE_DIR}"
     )
-    add_library(OpenSSL::Crypto UNKNOWN IMPORTED)
+    add_library(OpenSSL::Crypto UNKNOWN IMPORTED GLOBAL)
     set_target_properties(OpenSSL::Crypto PROPERTIES
         IMPORTED_LOCATION "${OPENSSL_CRYPTO_LIBRARY}"
         INTERFACE_INCLUDE_DIRECTORIES "${OPENSSL_INCLUDE_DIR}"

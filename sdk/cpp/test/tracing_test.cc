@@ -51,7 +51,7 @@ protected:
 
 TEST_F(TracingTest, HandleRequestCreatesSpan) {
     auto plugin = std::make_shared<MockPlugin>();
-    auto service = std::make_shared<PluginServiceImpl>(plugin);
+    auto service = std::make_shared<PluginServiceImpl>(plugin, [](){});
     
     grpc::ServerContext context;
     ::plugin::RequestContext request;
@@ -74,7 +74,7 @@ TEST_F(TracingTest, HandleRequestCreatesSpan) {
 
 TEST_F(TracingTest, HandleRequestErrorSpan) {
     auto plugin = std::make_shared<MockPlugin>();
-    auto service = std::make_shared<PluginServiceImpl>(plugin);
+    auto service = std::make_shared<PluginServiceImpl>(plugin, [](){});
     
     grpc::ServerContext context;
     ::plugin::RequestContext request;

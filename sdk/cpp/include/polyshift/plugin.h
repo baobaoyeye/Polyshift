@@ -3,6 +3,9 @@
 #include <string>
 #include <memory>
 #include <map>
+#include <mutex>
+#include <condition_variable>
+#include <grpcpp/grpcpp.h>
 #include "proto/plugin/plugin.grpc.pb.h"
 
 namespace polyshift {
@@ -26,6 +29,10 @@ public:
 private:
     std::shared_ptr<Plugin> plugin_;
     int selected_port_;
+    std::mutex mutex_;
+    std::condition_variable cv_;
+    bool shutdown_requested_ = false;
+    std::unique_ptr<grpc::Server> grpc_server_;
 };
 
 } // namespace polyshift

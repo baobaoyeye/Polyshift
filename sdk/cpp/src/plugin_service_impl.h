@@ -8,6 +8,8 @@
 #include "opentelemetry/trace/propagation/http_trace_context.h"
 #include "opentelemetry/context/runtime_context.h"
 
+#include <functional>
+
 namespace trace_api = opentelemetry::trace;
 namespace context = opentelemetry::context;
 
@@ -35,7 +37,8 @@ private:
 
 class PluginServiceImpl final : public ::plugin::PluginService::Service {
 public:
-    explicit PluginServiceImpl(std::shared_ptr<polyshift::Plugin> plugin) : plugin_(plugin) {
+    explicit PluginServiceImpl(std::shared_ptr<polyshift::Plugin> plugin, std::function<void()> shutdown_callback) 
+        : plugin_(plugin), shutdown_callback_(shutdown_callback) {
         // Get tracer
         tracer_ = trace_api::Provider::GetTracerProvider()->GetTracer("polyshift-cpp-plugin");
     }
@@ -95,7 +98,9 @@ public:
     }
 
     grpc::Status Shutdown(grpc::ServerContext* context, const ::plugin::Empty* request, ::plugin::Empty* response) override {
-        // TODO: Graceful shutdown logic if needed
+        if (shutdown_callback_) {
+            shutdown_callback_();
+        }
         return grpc::Status::OK;
     }
 
@@ -106,5 +111,6 @@ public:
 
 private:
     std::shared_ptr<polyshift::Plugin> plugin_;
-    opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> tracer_;
+    opentelemetry::nostd::shared_ptr<trace_api::Tracer> tracer_;
+    std::function<void()> shutdown_callback_;
 };

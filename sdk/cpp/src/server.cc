@@ -38,9 +38,11 @@ void InitTracer() {
     if (exporter_type && std::string(exporter_type) == "console") {
         std::cout << "Initializing Console Exporter" << std::endl;
         exporter = trace_exporter::OStreamSpanExporterFactory::Create();
+    } else if (exporter_type && std::string(exporter_type) == "none") {
+        std::cout << "OTEL_TRACES_EXPORTER=none, tracing disabled." << std::endl;
+        return;
     } else {
         std::cout << "Initializing OTLP Exporter" << std::endl;
-        // TODO: Handle "none" exporter
         exporter = otlp::OtlpGrpcExporterFactory::Create();
     }
     
@@ -80,18 +82,35 @@ void Server::Start() {
     ::InitTracer();
 
     std::string server_address("0.0.0.0:0");
-    PluginServiceImpl service(plugin_);
+    
+    // Pass shutdown callback to service
+    PluginServiceImpl service(plugin_, [this]() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        shutdown_requested_ = true;
+        cv_.notify_one();
+    });
 
     ServerBuilder builder;
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials(), &selected_port_);
     builder.RegisterService(&service);
-    std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
+    grpc_server_ = builder.BuildAndStart();
     
     // Print address to stdout for core to capture
     // Format: |PLUGIN_ADDR|<addr>|
     std::cout << "|PLUGIN_ADDR|127.0.0.1:" << selected_port_ << "|" << std::endl;
     
-    server->Wait();
+    // Wait for shutdown signal instead of server->Wait()
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+        cv_.wait(lock, [this]{ return shutdown_requested_; });
+    }
+
+    std::cout << "Shutting down server..." << std::endl;
+    if (grpc_server_) {
+        grpc_server_->Shutdown();
+        // Wait ensures that all RPCs are finished
+        grpc_server_->Wait();
+    }
 }
 
 } // namespace polyshift
