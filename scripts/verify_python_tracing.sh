@@ -17,18 +17,20 @@ export PYTHONPATH=$(pwd)/sdk/python
 # Clean previous log
 rm -f plugin.log
 
+# Cleanup trap
+cleanup() {
+    echo "Stopping plugin..."
+    if [ ! -z "$PID" ]; then
+        kill $PID || true
+    fi
+}
+trap cleanup EXIT
+
 echo "Launching plugin..."
 python3 examples/py-hello/main.py > plugin.log 2>&1 &
 PID=$!
 
 echo "Plugin started with PID $PID"
-
-# Cleanup trap
-cleanup() {
-    echo "Stopping plugin..."
-    kill $PID || true
-}
-trap cleanup EXIT
 
 # Wait for port
 echo "Waiting for plugin to initialize..."

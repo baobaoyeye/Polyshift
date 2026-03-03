@@ -1,6 +1,18 @@
 #!/bin/bash
 set -e
 
+# Ensure we are in project root
+cd "$(dirname "$0")/.."
+
+cleanup() {
+    echo "Stopping plugin..."
+    if [ ! -z "$PLUGIN_PID" ]; then
+        kill $PLUGIN_PID || true
+    fi
+    rm -f plugin_js.log
+}
+trap cleanup EXIT
+
 # Ensure dependencies are installed
 echo "Installing Node.js SDK dependencies..."
 cd sdk/js
@@ -68,9 +80,5 @@ if grep -q "traceId" plugin_js.log || grep -q "spanId" plugin_js.log; then
 else
     echo "FAILURE: No trace info found in logs."
     cat plugin_js.log
+    exit 1
 fi
-
-# Cleanup
-echo "Stopping plugin..."
-kill $PLUGIN_PID
-rm plugin_js.log

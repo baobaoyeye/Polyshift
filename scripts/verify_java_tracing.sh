@@ -69,10 +69,10 @@ sleep 2
 
 # Verify Trace ID in logs
 echo "Checking logs for traces..."
-if grep -q "trace_id" plugin_java.log || grep -q "Span" plugin_java.log || grep -q "OTEL" plugin_java.log; then
+if grep -qE "trace_id|traceId|span_id|spanId|Span" plugin_java.log; then
     echo "SUCCESS: Trace info found in logs."
     echo "Sample log output:"
-    grep -A 5 "Span" plugin_java.log | head -n 20 || grep "trace_id" plugin_java.log | head -n 20
+    grep -E "trace_id|traceId|span_id|spanId|Span" plugin_java.log | head -n 20
 else
     echo "FAILURE: No Trace info found in logs."
     echo "Full Log:"

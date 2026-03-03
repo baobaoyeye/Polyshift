@@ -2,9 +2,9 @@
 
 # Build C++ SDK
 echo "Building C++ SDK..."
-cd sdk/cpp
+cd sdk/cpp || exit 1
 mkdir -p build
-cd build
+cd build || exit 1
 if [ -d "$(pwd)/../deps" ]; then
     cmake -DCMAKE_PREFIX_PATH="$(pwd)/../deps" ..
 else
@@ -47,7 +47,7 @@ echo "Plugin listening on port $PORT"
 
 # Send request
 echo "Sending request..."
-cd ../../../
+cd ../../../ || exit 1
 python3 scripts/send_grpc_request.py $PORT
 
 # Check logs for traces
