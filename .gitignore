@@ -56,3 +56,17 @@ __pycache__/
 venv/
 .venv/
 *.egg-info/
+
+# Logs
+*.log
+
+# Build Output
+/bin/
+/core
+/microkernel
+
+# Examples Binaries
+examples/go-hello/go-hello
+
+# Test Binaries
+test/e2e/flaky_plugin/flaky_plugin
