@@ -6,6 +6,19 @@ import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import plugin.Plugin;
 import plugin.PluginServiceGrpc;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
+import io.opentelemetry.context.propagation.ContextPropagators;
+import io.opentelemetry.exporter.logging.LoggingSpanExporter;
+import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
+import io.opentelemetry.instrumentation.grpc.v1_6.GrpcTelemetry;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.resources.Resource;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
+import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
+import io.opentelemetry.sdk.trace.export.SpanExporter;
 
 import java.io.IOException;
 import java.util.Map;
@@ -17,6 +30,7 @@ public class PluginServer {
     private RequestHandler handler;
     private Map<String, String> config;
     private final ObjectMapper jsonMapper = new ObjectMapper();
+    private OpenTelemetrySdk openTelemetry;
 
     public interface RequestHandler {
         Plugin.ResponseContext handle(Plugin.RequestContext request) throws Exception;
@@ -31,9 +45,63 @@ public class PluginServer {
         return config.get(key);
     }
 
+    private void initTracing() {
+        String serviceName = System.getenv().getOrDefault("OTEL_SERVICE_NAME", "unknown-plugin");
+        Resource resource = Resource.getDefault().merge(
+                Resource.create(Attributes.of(AttributeKey.stringKey("service.name"), serviceName)));
+
+        SpanExporter exporter = null;
+        String exporterType = System.getenv().getOrDefault("OTEL_TRACES_EXPORTER", "otlp");
+        boolean useSimpleProcessor = false;
+
+        if ("console".equalsIgnoreCase(exporterType)) {
+            exporter = LoggingSpanExporter.create();
+            useSimpleProcessor = true;
+        } else if ("none".equalsIgnoreCase(exporterType)) {
+            return;
+        } else {
+            String endpoint = System.getenv().getOrDefault("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317");
+            exporter = OtlpGrpcSpanExporter.builder().setEndpoint(endpoint).build();
+        }
+
+        SdkTracerProvider sdkTracerProvider = SdkTracerProvider.builder()
+                .addSpanProcessor(useSimpleProcessor ? SimpleSpanProcessor.create(exporter) : BatchSpanProcessor.builder(exporter).build())
+                .setResource(resource)
+                .build();
+
+        openTelemetry = OpenTelemetrySdk.builder()
+                .setTracerProvider(sdkTracerProvider)
+                .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
+                .buildAndRegisterGlobal();
+    }
+
+    public void setOpenTelemetry(OpenTelemetrySdk sdk) {
+        this.openTelemetry = sdk;
+    }
+
+    public int getPort() {
+        return server != null ? server.getPort() : -1;
+    }
+
+    public void stop() {
+        if (server != null) {
+            server.shutdown();
+        }
+    }
+
     public void start() throws IOException, InterruptedException {
-        // Bind to random port
-        server = ServerBuilder.forPort(0)
+        if (openTelemetry == null) {
+            initTracing();
+        }
+
+        ServerBuilder<?> serverBuilder = ServerBuilder.forPort(0);
+        
+        if (openTelemetry != null) {
+            GrpcTelemetry grpcTelemetry = GrpcTelemetry.create(openTelemetry);
+            serverBuilder.intercept(grpcTelemetry.newServerInterceptor());
+        }
+
+        server = serverBuilder
                 .addService(new PluginServiceImpl())
                 .build()
                 .start();
@@ -96,26 +164,6 @@ public class PluginServer {
                         .build());
             }
             responseObserver.onCompleted();
-        }
-
-        @Override
-        public void shutdown(Plugin.Empty request, StreamObserver<Plugin.Empty> responseObserver) {
-            logger.info("Shutting down plugin...");
-            responseObserver.onNext(Plugin.Empty.newBuilder().build());
-            responseObserver.onCompleted();
-            
-            new Thread(() -> {
-                try {
-                    // Wait a bit for response to be sent
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    // ignore
-                }
-                if (server != null) {
-                    server.shutdown();
-                }
-                System.exit(0);
-            }).start();
         }
     }
 }

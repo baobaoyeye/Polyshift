@@ -1,3 +1,60 @@
+const { NodeSDK } = require('@opentelemetry/sdk-node');
+const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
+const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-grpc');
+const { resourceFromAttributes } = require('@opentelemetry/resources');
+const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventions');
+const { ConsoleSpanExporter, SimpleSpanProcessor } = require('@opentelemetry/sdk-trace-base');
+const { diag, DiagConsoleLogger, DiagLogLevel } = require('@opentelemetry/api');
+
+// Initialize OpenTelemetry
+function initTracing() {
+  const serviceName = process.env.OTEL_SERVICE_NAME || 'unknown-plugin';
+  const exporterType = process.env.OTEL_TRACES_EXPORTER || 'otlp';
+
+  if (exporterType === 'none') {
+    return;
+  }
+
+  // Setup diagnostic logging if requested
+  if (process.env.OTEL_DIAG_LEVEL) {
+    diag.setLogger(new DiagConsoleLogger(), DiagLogLevel[process.env.OTEL_DIAG_LEVEL] || DiagLogLevel.INFO);
+  }
+
+  let traceExporter;
+  if (exporterType === 'console') {
+    traceExporter = new ConsoleSpanExporter();
+  } else {
+    // Default OTLP
+    traceExporter = new OTLPTraceExporter();
+  }
+
+  const sdk = new NodeSDK({
+    resource: resourceFromAttributes({
+      [SemanticResourceAttributes.SERVICE_NAME]: serviceName,
+    }),
+    traceExporter: traceExporter,
+    instrumentations: [getNodeAutoInstrumentations()],
+  });
+
+  try {
+    sdk.start();
+    console.log(`[NodeJS Plugin] Tracing initialized for ${serviceName} with exporter ${exporterType}`);
+  } catch (error) {
+    console.error('[NodeJS Plugin] Error initializing tracing', error);
+  }
+
+  // Graceful shutdown
+  process.on('SIGTERM', () => {
+    sdk.shutdown()
+      .then(() => console.log('Tracing terminated'))
+      .catch((error) => console.log('Error terminating tracing', error))
+      .finally(() => process.exit(0));
+  });
+}
+
+// Initialize tracing before other imports
+initTracing();
+
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
 const path = require('path');
