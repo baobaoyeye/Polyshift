@@ -95,9 +95,18 @@ void Server::Start() {
     builder.RegisterService(&service);
     grpc_server_ = builder.BuildAndStart();
     
-    // Print address to stdout for core to capture
-    // Format: |PLUGIN_ADDR|<addr>|
-    std::cout << "|PLUGIN_ADDR|127.0.0.1:" << selected_port_ << "|" << std::endl;
+    if (!grpc_server_) {
+        std::cerr << "Failed to start server." << std::endl;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            shutdown_requested_ = true;
+        }
+        cv_.notify_all();
+    } else {
+        // Print address to stdout for core to capture
+        // Format: |PLUGIN_ADDR|<addr>|
+        std::cout << "|PLUGIN_ADDR|127.0.0.1:" << selected_port_ << "|" << std::endl;
+    }
     
     // Wait for shutdown signal instead of server->Wait()
     {
